@@ -153,7 +153,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Contact
 
-Have questions or suggestions? Feel free to open an issue or reach out to us at [your.email@example.com](mailto:your.email@example.com).
+Have questions or suggestions? Feel free to open an issue or reach out to us at [your.email@example.com](mailto:vedantnandeshwar2003@gmail.com).
 
 - [shadcn/ui](https://ui.shadcn.com/) for the amazing component library
 - [Vite](https://vitejs.dev/) for the fast development experience
