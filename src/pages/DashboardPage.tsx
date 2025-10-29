@@ -21,11 +21,13 @@ export default function DashboardPage() {
   const fetchTrips = async () => {
     try {
       const data = await tripService.getTrips();
+      console.log('✅ Fetched trips:', data);
       setTrips(data);
-    } catch (error) {
+    } catch (error: any) {
+      console.error('❌ Error fetching trips:', error);
       toast({
         title: 'Error',
-        description: 'Failed to load trips',
+        description: error.response?.data?.message || 'Failed to load trips',
         variant: 'destructive',
       });
     } finally {
@@ -49,7 +51,9 @@ export default function DashboardPage() {
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-primary">Planora</h1>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">Welcome, {user?.name}</span>
+            <span className="text-sm text-muted-foreground">
+              Welcome, {user?.firstName || user?.email}
+            </span>
             <Button variant="ghost" size="sm" onClick={handleLogout}>
               <LogOut className="h-4 w-4 mr-2" />
               Logout
@@ -92,13 +96,17 @@ export default function DashboardPage() {
             {trips.map((trip) => (
               <Link key={trip._id} to={`/trips/${trip._id}/itinerary`}>
                 <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
-                  {trip.tripImage && (
+                  {trip.coverImage && (
                     <div className="h-48 overflow-hidden rounded-t-lg">
-                      <img src={trip.tripImage} alt={trip.name} className="w-full h-full object-cover" />
+                      <img 
+                        src={trip.coverImage} 
+                        alt={trip.title} 
+                        className="w-full h-full object-cover" 
+                      />
                     </div>
                   )}
                   <CardHeader>
-                    <CardTitle>{trip.name}</CardTitle>
+                    <CardTitle>{trip.title}</CardTitle>
                     <CardDescription className="flex items-center gap-1">
                       <MapPin className="h-4 w-4" />
                       {trip.destination}
@@ -107,18 +115,18 @@ export default function DashboardPage() {
                   <CardContent>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Calendar className="h-4 w-4" />
-                      {format(new Date(trip.dates.start), 'MMM d')} - {format(new Date(trip.dates.end), 'MMM d, yyyy')}
+                      {format(new Date(trip.startDate), 'MMM d')} - {format(new Date(trip.endDate), 'MMM d, yyyy')}
                     </div>
                     <div className="mt-4 flex -space-x-2">
-                      {trip.members.slice(0, 3).map((member, idx) => (
+                      {trip.members?.slice(0, 3).map((member, idx) => (
                         <div
                           key={idx}
                           className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-medium border-2 border-background"
                         >
-                          {typeof member === 'string' ? '?' : member.name[0]}
+                          {member.user?.firstName?.[0] || member.user?.email?.[0] || '?'}
                         </div>
                       ))}
-                      {trip.members.length > 3 && (
+                      {trip.members && trip.members.length > 3 && (
                         <div className="h-8 w-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-xs font-medium border-2 border-background">
                           +{trip.members.length - 3}
                         </div>
@@ -132,7 +140,11 @@ export default function DashboardPage() {
         )}
       </main>
 
-      <CreateTripModal open={showCreateModal} onOpenChange={setShowCreateModal} onSuccess={fetchTrips} />
+      <CreateTripModal 
+        open={showCreateModal} 
+        onOpenChange={setShowCreateModal} 
+        onSuccess={fetchTrips} 
+      />
     </div>
   );
 }

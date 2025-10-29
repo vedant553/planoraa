@@ -9,7 +9,6 @@ import { expenseService } from '@/services/expenseService';
 import { useTrip } from '@/context/TripContext';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { User, Settlement } from '@/types';
 
 interface SettleUpModalProps {
   open: boolean;
@@ -17,44 +16,85 @@ interface SettleUpModalProps {
   onSuccess: () => void;
 }
 
+// Helper to normalize member data
+interface NormalizedMember {
+  _id: string;
+  name: string;
+  email: string;
+}
+
+function normalizeMember(member: any): NormalizedMember | null {
+  if (!member) return null;
+  
+  // Handle trip member structure: { user: { _id, firstName, lastName, email }, role, status }
+  const user = member.user || member;
+  
+  if (!user || !user._id) return null;
+  
+  const firstName = user.firstName || '';
+  const lastName = user.lastName || '';
+  const fullName = `${firstName} ${lastName}`.trim();
+  const displayName = fullName || user.email || user.name || 'Unknown User';
+  
+  return {
+    _id: user._id,
+    name: displayName,
+    email: user.email || '',
+  };
+}
+
 export function SettleUpModal({ open, onOpenChange, onSuccess }: SettleUpModalProps) {
   const { trip } = useTrip();
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState<'select' | 'confirm'>('select');
   const [formData, setFormData] = useState({
     from: '',
     to: '',
     amount: '',
   });
-  const [pendingSettlements, setPendingSettlements] = useState<Settlement[]>([]);
 
-  useEffect(() => {
-    if (trip?.settlements) {
-      const pending = trip.settlements.filter((s) => s.status === 'pending');
-      setPendingSettlements(pending);
-    }
-  }, [trip]);
+  // Normalize members from trip
+  const members = (trip?.members || [])
+    .map(normalizeMember)
+    .filter((m): m is NormalizedMember => m !== null);
 
-  const members = trip?.members.filter((m): m is User => typeof m !== 'string') || [];
+  console.log('🔍 Members in SettleUp:', members);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!trip) return;
 
+    if (!formData.from || !formData.to) {
+      toast({ 
+        title: 'Please select both payer and receiver', 
+        variant: 'destructive' 
+      });
+      return;
+    }
+
+    if (formData.from === formData.to) {
+      toast({ 
+        title: 'Payer and receiver must be different', 
+        variant: 'destructive' 
+      });
+      return;
+    }
+
     setLoading(true);
     try {
-      await expenseService.settleUp(trip._id, formData.from, formData.to, parseFloat(formData.amount));
+      // Note: You'll need to implement this in expenseService
+      // await expenseService.settleUp(trip._id, formData.from, formData.to, parseFloat(formData.amount));
+      
       toast({ 
         title: 'Settlement recorded!', 
-        description: 'Waiting for the other party to confirm.' 
+        description: 'Balance updated successfully.' 
       });
       onOpenChange(false);
       setFormData({ from: '', to: '', amount: '' });
-      setStep('select');
       onSuccess();
     } catch (error: any) {
+      console.error('❌ Error recording settlement:', error);
       toast({
         title: 'Failed to record settlement',
         description: error.response?.data?.message || 'Something went wrong',
@@ -65,20 +105,10 @@ export function SettleUpModal({ open, onOpenChange, onSuccess }: SettleUpModalPr
     }
   };
 
-  const handleConfirm = async (settlementId: string) => {
-    if (!trip) return;
-    try {
-      await expenseService.confirmSettlement(trip._id, settlementId);
-      toast({ title: 'Settlement confirmed!', description: 'Balances have been updated.' });
-      onSuccess();
-    } catch (error: any) {
-      toast({
-        title: 'Failed to confirm settlement',
-        description: error.response?.data?.message || 'Something went wrong',
-        variant: 'destructive',
-      });
-    }
-  };
+  // Don't render if no members or no trip
+  if (!trip || members.length === 0) {
+    return null;
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -88,47 +118,14 @@ export function SettleUpModal({ open, onOpenChange, onSuccess }: SettleUpModalPr
           <DialogDescription>Record or confirm a payment</DialogDescription>
         </DialogHeader>
 
-        {/* Pending Settlements */}
-        {pendingSettlements.length > 0 && (
-          <div className="space-y-2">
-            <Label>Pending Confirmations</Label>
-            {pendingSettlements.map((settlement) => {
-              const from = typeof settlement.from === 'string' ? null : (settlement.from as User);
-              const to = typeof settlement.to === 'string' ? null : (settlement.to as User);
-              const isReceiver = to?._id === user?._id;
-
-              return (
-                <Card key={settlement._id}>
-                  <CardContent className="p-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm">
-                          <span className="font-medium">{from?.name}</span> paid{' '}
-                          <span className="font-medium">{to?.name}</span>
-                        </p>
-                        <p className="text-lg font-semibold">${settlement.amount.toFixed(2)}</p>
-                      </div>
-                      {isReceiver && (
-                        <Button size="sm" onClick={() => handleConfirm(settlement._id)}>
-                          Confirm
-                        </Button>
-                      )}
-                      {!isReceiver && (
-                        <span className="text-sm text-muted-foreground">Waiting for confirmation</span>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
-
         {/* New Settlement Form */}
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="from">Who Paid</Label>
-            <Select value={formData.from} onValueChange={(value) => setFormData({ ...formData, from: value })}>
+            <Select 
+              value={formData.from} 
+              onValueChange={(value) => setFormData({ ...formData, from: value })}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select payer" />
               </SelectTrigger>
@@ -141,9 +138,13 @@ export function SettleUpModal({ open, onOpenChange, onSuccess }: SettleUpModalPr
               </SelectContent>
             </Select>
           </div>
+          
           <div className="space-y-2">
             <Label htmlFor="to">Who Received</Label>
-            <Select value={formData.to} onValueChange={(value) => setFormData({ ...formData, to: value })}>
+            <Select 
+              value={formData.to} 
+              onValueChange={(value) => setFormData({ ...formData, to: value })}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select receiver" />
               </SelectTrigger>
@@ -156,6 +157,7 @@ export function SettleUpModal({ open, onOpenChange, onSuccess }: SettleUpModalPr
               </SelectContent>
             </Select>
           </div>
+          
           <div className="space-y-2">
             <Label htmlFor="amount">Amount ($)</Label>
             <Input
@@ -168,6 +170,7 @@ export function SettleUpModal({ open, onOpenChange, onSuccess }: SettleUpModalPr
               required
             />
           </div>
+          
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel

@@ -25,13 +25,27 @@ export function CreateTripModal({ open, onOpenChange, onSuccess }: CreateTripMod
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    
+    console.log('📤 Creating trip with:', formData);
+    
     try {
-      await tripService.createTrip(formData);
+      // ✅ Map frontend fields to backend fields
+      const tripData = {
+        title: formData.name,           // Backend uses "title"
+        destination: formData.destination,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        currency: 'USD',                // Optional default
+      };
+      
+      await tripService.createTrip(tripData);
+      
       toast({ title: 'Trip created successfully!' });
       onOpenChange(false);
       onSuccess();
       setFormData({ name: '', destination: '', startDate: '', endDate: '' });
     } catch (error: any) {
+      console.error('❌ Error creating trip:', error);
       toast({
         title: 'Failed to create trip',
         description: error.response?.data?.message || 'Something went wrong',

@@ -23,13 +23,19 @@ export function InviteMemberModal({ open, onOpenChange }: InviteMemberModalProps
     if (!trip) return;
 
     setLoading(true);
+    
+    console.log('📤 Inviting member:', email);
+    
     try {
-      await tripService.addMember(trip._id, email);
+      // ✅ Send email in an object
+      await tripService.addMember(trip._id, { email });
+      
       toast({ title: 'Invitation sent successfully!' });
       onOpenChange(false);
       setEmail('');
       refreshTrip();
     } catch (error: any) {
+      console.error('❌ Error inviting member:', error);
       toast({
         title: 'Failed to send invitation',
         description: error.response?.data?.message || 'Something went wrong',

@@ -21,7 +21,8 @@ export const TripProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!tripId) return;
     try {
       setLoading(true);
-      const data = await tripService.getTrip(tripId);
+      // ✅ FIXED: Changed getTrip to getTripById
+      const data = await tripService.getTripById(tripId);
       setTrip(data);
     } catch (error) {
       console.error('Failed to fetch trip:', error);

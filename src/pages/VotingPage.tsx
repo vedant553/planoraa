@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTrip } from '@/context/TripContext';
 import { useAuth } from '@/context/AuthContext';
-import { pollService } from '@/services/pollService';
-import { Poll, User } from '@/types';
+import { pollService, Poll } from '@/services/pollService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Vote, ThumbsUp, ThumbsDown } from 'lucide-react';
@@ -22,8 +21,10 @@ export default function VotingPage() {
     if (!trip) return;
     try {
       const data = await pollService.getPolls(trip._id);
+      console.log('✅ Fetched polls:', data);
       setPolls(data);
     } catch (error) {
+      console.error('❌ Error fetching polls:', error);
       toast({ title: 'Failed to load polls', variant: 'destructive' });
     } finally {
       setLoading(false);
@@ -39,7 +40,9 @@ export default function VotingPage() {
     try {
       await pollService.vote(trip._id, pollId, voteType);
       fetchPolls();
+      toast({ title: 'Vote recorded!' });
     } catch (error: any) {
+      console.error('❌ Error voting:', error);
       toast({
         title: 'Failed to vote',
         description: error.response?.data?.message || 'Something went wrong',
@@ -80,20 +83,26 @@ export default function VotingPage() {
       ) : (
         <div className="space-y-4">
           {polls.map((poll) => {
-            const creator = typeof poll.createdBy === 'string' ? null : (poll.createdBy as User);
-            const userVote = poll.votes.find((v) => {
+            const creator = poll.createdBy;
+            const creatorName = creator.firstName 
+              ? `${creator.firstName} ${creator.lastName || ''}`.trim()
+              : creator.email;
+
+            // Find user's vote with null check
+            const userVote = poll.votes?.find((v) => {
               const voter = typeof v.user === 'string' ? v.user : v.user._id;
-              return voter === user?._id;
+              return voter === user?.id;
             });
-            const upvotes = poll.votes.filter((v) => v.voteType === 'upvote').length;
-            const downvotes = poll.votes.filter((v) => v.voteType === 'downvote').length;
+
+            const upvotes = poll.votes?.filter((v) => v.voteType === 'upvote').length || 0;
+            const downvotes = poll.votes?.filter((v) => v.voteType === 'downvote').length || 0;
 
             return (
               <Card key={poll._id}>
                 <CardHeader>
                   <CardTitle>{poll.question}</CardTitle>
                   {poll.description && <CardDescription>{poll.description}</CardDescription>}
-                  <p className="text-xs text-muted-foreground">Proposed by {creator?.name || 'Unknown'}</p>
+                  <p className="text-xs text-muted-foreground">Proposed by {creatorName}</p>
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center gap-4">

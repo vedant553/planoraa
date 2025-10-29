@@ -30,13 +30,29 @@ export function AddActivityModal({ open, onOpenChange, onSuccess }: AddActivityM
     if (!trip) return;
 
     setLoading(true);
+    
+    console.log('📤 Form data:', formData);
+    
     try {
-      await activityService.addActivity(trip._id, formData);
+      // ✅ Transform data to backend format
+      const activityData = {
+        title: formData.title,
+        description: formData.description,
+        location: formData.location,
+        startTime: new Date(formData.dateTime).toISOString(), // Convert to ISO 8601
+      };
+      
+      console.log('📤 Sending to backend:', activityData);
+      
+      // ✅ Use createActivity (not addActivity)
+      await activityService.createActivity(trip._id, activityData);
+      
       toast({ title: 'Activity added successfully!' });
       onOpenChange(false);
       setFormData({ title: '', description: '', location: '', dateTime: '' });
       onSuccess();
     } catch (error: any) {
+      console.error('❌ Error:', error);
       toast({
         title: 'Failed to add activity',
         description: error.response?.data?.message || 'Something went wrong',

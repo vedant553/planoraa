@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTrip } from '@/context/TripContext';
 import { useAuth } from '@/context/AuthContext';
 import { expenseService } from '@/services/expenseService';
-import { Expense, Balance } from '@/types';
+import { Expense } from '@/services/expenseService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
@@ -10,28 +10,51 @@ import { AddExpenseModal } from '@/components/modals/AddExpenseModal';
 import { SettleUpModal } from '@/components/modals/SettleUpModal';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { User } from '@/types';
 
 export default function ExpensesPage() {
   const { trip } = useTrip();
   const { user } = useAuth();
   const { toast } = useToast();
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [balances, setBalances] = useState<Balance>({});
+  const [balances, setBalances] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSettleModal, setShowSettleModal] = useState(false);
 
   const fetchData = async () => {
     if (!trip) return;
+    
     try {
-      const [expensesData, balancesData] = await Promise.all([
-        expenseService.getExpenses(trip._id),
-        expenseService.getBalances(trip._id),
-      ]);
+      const expensesData = await expenseService.getExpenses(trip._id);
+      
+      console.log('✅ Fetched expenses:', expensesData);
       setExpenses(expensesData);
-      setBalances(balancesData);
+      
+      // Calculate balances locally with null checks
+      const calculatedBalances: Record<string, number> = {};
+      
+      expensesData.forEach(expense => {
+        // Check if paidBy exists and has _id
+        if (expense.paidBy && expense.paidBy._id) {
+          const paidById = expense.paidBy._id;
+          calculatedBalances[paidById] = (calculatedBalances[paidById] || 0) + expense.amount;
+        }
+        
+        // Check participants array
+        if (expense.participants && Array.isArray(expense.participants)) {
+          expense.participants.forEach(participant => {
+            // Check if participant and user exist
+            if (participant && participant.user && participant.user._id) {
+              const userId = participant.user._id;
+              calculatedBalances[userId] = (calculatedBalances[userId] || 0) - participant.share;
+            }
+          });
+        }
+      });
+      
+      setBalances(calculatedBalances);
     } catch (error) {
+      console.error('❌ Error loading expenses:', error);
       toast({ title: 'Failed to load expenses', variant: 'destructive' });
     } finally {
       setLoading(false);
@@ -42,7 +65,7 @@ export default function ExpensesPage() {
     fetchData();
   }, [trip]);
 
-  const userBalance = user ? balances[user._id] || 0 : 0;
+  const userBalance = user ? balances[user.id] || 0 : 0;
   const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
   const userOwed = Object.values(balances).reduce((sum, bal) => (bal > 0 ? sum + bal : sum), 0);
 
@@ -138,19 +161,26 @@ export default function ExpensesPage() {
               {expenses
                 .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                 .map((expense) => {
-                  const payer = typeof expense.paidBy === 'string' ? null : (expense.paidBy as User);
+                  // Safe access to payer info
+                  const payer = expense.paidBy;
+                  const payerName = payer 
+                    ? (payer.firstName 
+                        ? `${payer.firstName} ${payer.lastName || ''}`.trim()
+                        : payer.email)
+                    : 'Unknown';
+
                   return (
                     <div key={expense._id} className="flex items-center justify-between p-3 border rounded-lg">
                       <div className="flex-1">
-                        <h4 className="font-medium">{expense.description}</h4>
+                        <h4 className="font-medium">{expense.title}</h4>
                         <p className="text-sm text-muted-foreground">
-                          Paid by {payer?.name || 'Unknown'} • {format(new Date(expense.date), 'MMM d, yyyy')}
+                          Paid by {payerName} • {format(new Date(expense.date), 'MMM d, yyyy')}
                         </p>
                       </div>
                       <div className="text-right">
                         <p className="font-semibold text-lg">${expense.amount.toFixed(2)}</p>
                         <p className="text-xs text-muted-foreground">
-                          Split {expense.splitDetails.length} ways
+                          Split {expense.participants?.length || 0} ways
                         </p>
                       </div>
                     </div>

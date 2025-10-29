@@ -1,44 +1,82 @@
 import api from './api';
-import { Trip } from '@/types';
+
+export interface Trip {
+  _id: string;
+  title: string;
+  description?: string;
+  destination: string;
+  startDate: string;
+  endDate: string;
+  coverImage?: string;
+  budget?: number;
+  currency: string;
+  status: 'PLANNING' | 'CONFIRMED' | 'ONGOING' | 'COMPLETED' | 'CANCELLED';
+  owner: {
+    _id: string;
+    firstName?: string;
+    lastName?: string;
+    email: string;
+  };
+  members: Array<{
+    user: {
+      _id: string;
+      firstName?: string;
+      lastName?: string;
+      email: string;
+    };
+    role: string;
+    status: string;
+  }>;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export const tripService = {
-  async createTrip(data: { name: string; destination: string; startDate: string; endDate: string }): Promise<Trip> {
-    const { data: trip } = await api.post<Trip>('/trips', data);
-    return trip;
-  },
-
+  // Get all trips for current user
   async getTrips(): Promise<Trip[]> {
-    const { data } = await api.get<Trip[]>('/trips');
-    return data;
+    const response = await api.get('/trips');
+    return response.data.data.trips;
   },
 
-  async getTrip(id: string): Promise<Trip> {
-    const { data } = await api.get<Trip>(`/trips/${id}`);
-    return data;
+  // Get single trip by ID
+  async getTripById(tripId: string): Promise<Trip> {
+    const response = await api.get(`/trips/${tripId}`);
+    return response.data.data.trip;
   },
 
-  async updateTrip(id: string, updates: Partial<Trip>, tripImage?: File): Promise<Trip> {
-    if (tripImage) {
-      const formData = new FormData();
-      Object.entries(updates).forEach(([key, value]) => {
-        formData.append(key, typeof value === 'object' ? JSON.stringify(value) : value);
-      });
-      formData.append('tripImage', tripImage);
-      const { data } = await api.put<Trip>(`/trips/${id}`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      return data;
-    }
-    const { data } = await api.put<Trip>(`/trips/${id}`, updates);
-    return data;
+  // Create new trip
+  async createTrip(data: {
+    title: string;
+    description?: string;
+    destination: string;
+    startDate: string;
+    endDate: string;
+    budget?: number;
+    currency?: string;
+    coverImage?: string;
+  }): Promise<Trip> {
+    const response = await api.post('/trips', data);
+    return response.data.data.trip;
   },
 
-  async deleteTrip(id: string): Promise<void> {
-    await api.delete(`/trips/${id}`);
+  // Update trip
+  async updateTrip(tripId: string, data: Partial<Trip>): Promise<Trip> {
+    const response = await api.put(`/trips/${tripId}`, data);
+    return response.data.data.trip;
   },
 
-  async addMember(tripId: string, email: string): Promise<Trip> {
-    const { data } = await api.post<Trip>(`/trips/${tripId}/members`, { email });
-    return data;
+  // Delete trip
+  async deleteTrip(tripId: string): Promise<void> {
+    await api.delete(`/trips/${tripId}`);
   },
+
+  // Add member to trip
+  async addMember(
+    tripId: string,
+    data: { email: string } | { userId: string; role?: string }
+  ): Promise<Trip> {
+    const response = await api.post(`/trips/${tripId}/members`, data);
+    return response.data.data.trip;
+  },
+
 };

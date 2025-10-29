@@ -1,36 +1,95 @@
 import api from './api';
-import { Expense, Balance } from '@/types';
+
+export interface Expense {
+  _id: string;
+  trip: string;
+  title: string;
+  description?: string;
+  amount: number;
+  currency: string;
+  category: string;
+  date: string;
+  receipt?: string;
+  paidBy: {
+    _id: string;
+    firstName?: string;
+    lastName?: string;
+    email: string;
+  };
+  participants: Array<{
+    user: {
+      _id: string;
+      firstName?: string;
+      lastName?: string;
+      email: string;
+    };
+    share: number;
+    isPaid: boolean;
+  }>;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export const expenseService = {
-  async addExpense(tripId: string, expenseData: Partial<Expense>): Promise<Expense[]> {
-    const { data } = await api.post<Expense[]>(`/trips/${tripId}/expenses`, expenseData);
-    return data;
-  },
-
+  // Get all expenses for a trip
   async getExpenses(tripId: string): Promise<Expense[]> {
-    const { data } = await api.get<Expense[]>(`/trips/${tripId}/expenses`);
-    return data;
+    const response = await api.get(`/trips/${tripId}/expenses`);
+    return response.data.data.expenses;
   },
 
-  async updateExpense(tripId: string, expenseId: string, updates: Partial<Expense>): Promise<Expense> {
-    const { data } = await api.put<Expense>(`/trips/${tripId}/expenses/${expenseId}`, updates);
-    return data;
+  // Create new expense
+  async createExpense(tripId: string, data: {
+    title?: string;
+    description?: string;
+    amount: number;
+    currency?: string;
+    category?: string;
+    date?: string;
+    paidBy?: string;
+    participants: Array<{
+      user: string;
+      share: number;
+      isPaid?: boolean;
+    }>;
+  }): Promise<Expense> {
+    const response = await api.post(`/trips/${tripId}/expenses`, data);
+    return response.data.data.expense;
   },
 
-  async deleteExpense(tripId: string, expenseId: string): Promise<void> {
-    await api.delete(`/trips/${tripId}/expenses/${expenseId}`);
+  // Alias for backwards compatibility
+  async addExpense(tripId: string, data: any): Promise<Expense> {
+    return expenseService.createExpense(tripId, data);
   },
 
-  async getBalances(tripId: string): Promise<Balance> {
-    const { data } = await api.get<Balance>(`/trips/${tripId}/balances`);
-    return data;
+  // Update expense
+  async updateExpense(
+    expenseId: string,
+    data: Partial<Expense>
+  ): Promise<Expense> {
+    const response = await api.put(`/expenses/${expenseId}`, data);
+    return response.data.data.expense;
   },
 
-  async settleUp(tripId: string, from: string, to: string, amount: number): Promise<void> {
-    await api.post(`/trips/${tripId}/settle`, { from, to, amount });
+  // Delete expense
+  async deleteExpense(expenseId: string): Promise<void> {
+    await api.delete(`/expenses/${expenseId}`);
   },
 
-  async confirmSettlement(tripId: string, settlementId: string): Promise<void> {
-    await api.put(`/trips/${tripId}/settlements/${settlementId}/confirm`);
+  // Get balances (placeholder - calculates locally)
+  async getBalances(tripId: string): Promise<Record<string, number>> {
+    const expenses = await expenseService.getExpenses(tripId);
+    const balances: Record<string, number> = {};
+
+    expenses.forEach(expense => {
+      const paidById = expense.paidBy._id;
+      balances[paidById] = (balances[paidById] || 0) + expense.amount;
+      
+      expense.participants.forEach(participant => {
+        const userId = participant.user._id;
+        balances[userId] = (balances[userId] || 0) - participant.share;
+      });
+    });
+
+    return balances;
   },
 };

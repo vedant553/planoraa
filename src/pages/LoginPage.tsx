@@ -14,7 +14,12 @@ export default function LoginPage() {
   const { toast } = useToast();
   
   const [loginData, setLoginData] = useState({ email: '', password: '' });
-  const [registerData, setRegisterData] = useState({ name: '', email: '', password: '' });
+  const [registerData, setRegisterData] = useState({ 
+    firstName: '', 
+    lastName: '', 
+    email: '', 
+    password: '' 
+  });
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -38,11 +43,17 @@ export default function LoginPage() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    
+    console.log('📤 Registering with:', registerData);
+    
     try {
-      await register(registerData.name, registerData.email, registerData.password);
+      // ✅ Pass object to register
+      await register(registerData);
+      
       toast({ title: 'Account created successfully!' });
       navigate('/dashboard');
     } catch (error: any) {
+      console.error('❌ Registration error:', error);
       toast({
         title: 'Registration failed',
         description: error.response?.data?.message || 'Something went wrong',
@@ -113,14 +124,23 @@ export default function LoginPage() {
               <CardContent>
                 <form onSubmit={handleRegister} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="register-name">Name</Label>
+                    <Label htmlFor="register-firstName">First Name</Label>
                     <Input
-                      id="register-name"
+                      id="register-firstName"
                       type="text"
-                      placeholder="John Doe"
-                      value={registerData.name}
-                      onChange={(e) => setRegisterData({ ...registerData, name: e.target.value })}
-                      required
+                      placeholder="John"
+                      value={registerData.firstName}
+                      onChange={(e) => setRegisterData({ ...registerData, firstName: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="register-lastName">Last Name</Label>
+                    <Input
+                      id="register-lastName"
+                      type="text"
+                      placeholder="Doe"
+                      value={registerData.lastName}
+                      onChange={(e) => setRegisterData({ ...registerData, lastName: e.target.value })}
                     />
                   </div>
                   <div className="space-y-2">
@@ -135,13 +155,14 @@ export default function LoginPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="register-password">Password</Label>
+                    <Label htmlFor="register-password">Password (min 6 characters)</Label>
                     <Input
                       id="register-password"
                       type="password"
                       value={registerData.password}
                       onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
                       required
+                      minLength={6}
                     />
                   </div>
                   <Button type="submit" className="w-full" disabled={loading}>

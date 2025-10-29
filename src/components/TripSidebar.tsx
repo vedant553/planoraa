@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Calendar, DollarSign, Vote, UserPlus, ArrowLeft, Menu, X } from 'lucide-react';
 import { InviteMemberModal } from '@/components/modals/InviteMemberModal';
-import { User } from '@/types';
 import { cn } from '@/lib/utils';
 
 export function TripSidebar() {
@@ -25,9 +24,10 @@ export function TripSidebar() {
     );
   }
 
-  const isCreator = typeof trip.createdBy === 'string' 
-    ? trip.createdBy === user?._id 
-    : trip.createdBy._id === user?._id;
+  // ✅ FIXED: Use trip.owner instead of trip.createdBy
+  const isOwner = typeof trip.owner === 'string' 
+    ? trip.owner === user?.id 
+    : trip.owner?._id === user?.id;
 
   const navItems = [
     { path: `/trips/${trip._id}/itinerary`, label: 'Itinerary', icon: Calendar },
@@ -67,11 +67,17 @@ export function TripSidebar() {
               Back to Dashboard
             </Button>
             
-            {trip.tripImage && (
-              <img src={trip.tripImage} alt={trip.name} className="w-full h-32 object-cover rounded-lg mb-3" />
+            {/* ✅ FIXED: Use trip.coverImage instead of trip.tripImage */}
+            {trip.coverImage && (
+              <img 
+                src={trip.coverImage} 
+                alt={trip.title} 
+                className="w-full h-32 object-cover rounded-lg mb-3" 
+              />
             )}
             
-            <h2 className="font-bold text-lg">{trip.name}</h2>
+            {/* ✅ FIXED: Use trip.title instead of trip.name */}
+            <h2 className="font-bold text-lg">{trip.title}</h2>
             <p className="text-sm text-muted-foreground">{trip.destination}</p>
           </div>
 
@@ -105,23 +111,33 @@ export function TripSidebar() {
           <div className="p-4 border-t">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold">Members</h3>
-              {isCreator && (
+              {isOwner && (
                 <Button size="sm" variant="ghost" onClick={() => setShowInviteModal(true)}>
                   <UserPlus className="h-4 w-4" />
                 </Button>
               )}
             </div>
             <div className="space-y-2">
-              {trip.members.map((member) => {
-                const m = typeof member === 'string' ? null : (member as User);
-                if (!m) return null;
+              {trip.members?.map((member) => {
+                // ✅ FIXED: Handle backend member structure
+                const memberUser = member.user;
+                if (!memberUser) return null;
+                
+                // Get display name
+                const displayName = memberUser.firstName 
+                  ? `${memberUser.firstName} ${memberUser.lastName || ''}`.trim()
+                  : memberUser.email;
+                
+                // Get initials
+                const initials = memberUser.firstName?.[0] || memberUser.email?.[0] || '?';
+                
                 return (
-                  <div key={m._id} className="flex items-center gap-2">
+                  <div key={memberUser._id} className="flex items-center gap-2">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={m.profilePicture} />
-                      <AvatarFallback>{m.name[0]}</AvatarFallback>
+                      <AvatarImage src={memberUser.avatar} />
+                      <AvatarFallback>{initials}</AvatarFallback>
                     </Avatar>
-                    <span className="text-sm truncate">{m.name}</span>
+                    <span className="text-sm truncate">{displayName}</span>
                   </div>
                 );
               })}

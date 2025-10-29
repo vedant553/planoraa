@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Calendar, MapPin, Clock } from 'lucide-react';
 import { AddActivityModal } from '@/components/modals/AddActivityModal';
-import { format, parseISO, isSameDay } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 
 export default function ItineraryPage() {
@@ -20,8 +20,10 @@ export default function ItineraryPage() {
     if (!trip) return;
     try {
       const data = await activityService.getActivities(trip._id);
+      console.log('✅ Fetched activities:', data);
       setActivities(data);
     } catch (error) {
+      console.error('❌ Error fetching activities:', error);
       toast({ title: 'Failed to load activities', variant: 'destructive' });
     } finally {
       setLoading(false);
@@ -32,9 +34,10 @@ export default function ItineraryPage() {
     fetchActivities();
   }, [trip]);
 
-  // Group activities by day
+  // ✅ FIXED: Use startTime instead of dateTime
   const groupedActivities = activities.reduce((acc, activity) => {
-    const date = format(parseISO(activity.dateTime), 'yyyy-MM-dd');
+    // ✅ Use startTime from backend
+    const date = format(parseISO(activity.startTime), 'yyyy-MM-dd');
     if (!acc[date]) acc[date] = [];
     acc[date].push(activity);
     return acc;
@@ -81,7 +84,7 @@ export default function ItineraryPage() {
                 </h2>
                 <div className="space-y-3">
                   {dayActivities
-                    .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime())
+                    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
                     .map((activity) => (
                       <Card key={activity._id}>
                         <CardHeader>
@@ -94,7 +97,7 @@ export default function ItineraryPage() {
                           <div className="flex flex-wrap gap-4 text-sm">
                             <div className="flex items-center gap-1 text-muted-foreground">
                               <Clock className="h-4 w-4" />
-                              {format(parseISO(activity.dateTime), 'h:mm a')}
+                              {format(parseISO(activity.startTime), 'h:mm a')}
                             </div>
                             {activity.location && (
                               <div className="flex items-center gap-1 text-muted-foreground">
