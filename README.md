@@ -16,8 +16,6 @@
 
 ![Planoraa Banner](./public/hero-image.png)
 
-![Planoraa Banner](./public/hero-image.png)
-
 Planoraa is a modern, collaborative trip planning platform that helps groups organize their travels seamlessly. From itinerary planning to expense tracking and group decision-making, Planoraa provides all the tools needed for stress-free trip organization.
 
 ## 🚀 Live Demo
